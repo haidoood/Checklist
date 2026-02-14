@@ -37,7 +37,7 @@
       <div id="countdown" class="flex gap-4 text-sm font-semibold" style="color: #f8f6f3;">
        <div class="text-center">
         <div id="days" class="text-2xl font-bold" style="color: #c4a35a;">
-         00
+         --
         </div>
         <div class="text-xs opacity-75">
          Days
@@ -45,7 +45,7 @@
        </div>
        <div class="text-center">
         <div id="hours" class="text-2xl font-bold" style="color: #c4a35a;">
-         00
+         --
         </div>
         <div class="text-xs opacity-75">
          Hours
@@ -53,7 +53,7 @@
        </div>
        <div class="text-center">
         <div id="minutes" class="text-2xl font-bold" style="color: #c4a35a;">
-         00
+         --
         </div>
         <div class="text-xs opacity-75">
          Minutes
@@ -312,31 +312,32 @@
       const now = new Date().getTime();
       const difference = targetDate - now;
 
+      const daysEl = document.getElementById('days');
+      const hoursEl = document.getElementById('hours');
+      const minutesEl = document.getElementById('minutes');
+      const subtitleDaysEl = document.getElementById('subtitle-days');
+
       if (difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
 
-        document.getElementById('days').textContent = String(days).padStart(2, '0');
-        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
-        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
-        document.getElementById('subtitle-days').textContent = days;
+        if (daysEl) daysEl.textContent = String(days).padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+        if (minutesEl) minutesEl.textContent = String(minutes).padStart(2, '0');
+        if (subtitleDaysEl) subtitleDaysEl.textContent = days;
       } else {
-        document.getElementById('days').textContent = '00';
-        document.getElementById('hours').textContent = '00';
-        document.getElementById('minutes').textContent = '00';
-        document.getElementById('subtitle-days').textContent = '0';
+        if (daysEl) daysEl.textContent = '00';
+        if (hoursEl) hoursEl.textContent = '00';
+        if (minutesEl) minutesEl.textContent = '00';
+        if (subtitleDaysEl) subtitleDaysEl.textContent = '0';
       }
     }
 
-    // Initialize countdown immediately on page load
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', updateCountdown);
-    } else {
-      updateCountdown();
-    }
-
-    // Update countdown every minute
+    // Start countdown immediately when script loads
+    updateCountdown();
+    
+    // Update every minute
     setInterval(updateCountdown, 60000);
 
     const defaultConfig = {
@@ -364,4 +365,87 @@
       if (wakeTime) wakeTime.textContent = config.wake_time || defaultConfig.wake_time;
       if (sleepTarget) sleepTarget.textContent = config.sleep_target || defaultConfig.sleep_target;
 
-      const bgColor = config.background_color || defaultConfig
+      const bgColor = config.background_color || defaultConfig.background_color;
+      const fontFamily = config.font_family || defaultConfig.font_family;
+
+      if (app) {
+        app.style.background = `linear-gradient(135deg, ${bgColor} 0%, #e8e4dd 100%)`;
+        app.style.fontFamily = `${fontFamily}, sans-serif`;
+      }
+
+      document.querySelectorAll('h1, h2, h3').forEach(el => {
+        el.style.fontFamily = `'Crimson Pro', ${fontFamily}, serif`;
+      });
+    }
+
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => {
+              config.background_color = value;
+              window.elementSdk.setConfig({ background_color: value });
+            }
+          },
+          {
+            get: () => config.card_color || defaultConfig.card_color,
+            set: (value) => {
+              config.card_color = value;
+              window.elementSdk.setConfig({ card_color: value });
+            }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => {
+              config.text_color = value;
+              window.elementSdk.setConfig({ text_color: value });
+            }
+          },
+          {
+            get: () => config.primary_color || defaultConfig.primary_color,
+            set: (value) => {
+              config.primary_color = value;
+              window.elementSdk.setConfig({ primary_color: value });
+            }
+          },
+          {
+            get: () => config.accent_color || defaultConfig.accent_color,
+            set: (value) => {
+              config.accent_color = value;
+              window.elementSdk.setConfig({ accent_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => config.font_family || defaultConfig.font_family,
+          set: (value) => {
+            config.font_family = value;
+            window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: undefined
+      };
+    }
+
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ["main_title", config.main_title || defaultConfig.main_title],
+        ["subtitle", config.subtitle || defaultConfig.subtitle],
+        ["wake_time", config.wake_time || defaultConfig.wake_time],
+        ["sleep_target", config.sleep_target || defaultConfig.sleep_target]
+      ]);
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cdda353836321f0',t:'MTc3MTA4MzM1NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
