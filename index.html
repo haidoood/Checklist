@@ -14,13 +14,29 @@
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
     .checkbox-custom {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border: 2px solid #1e3a5f;
       border-radius: 3px;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       vertical-align: middle;
       margin-right: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .checkbox-custom:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 12px rgba(196, 163, 90, 0.5);
+    }
+    .checkbox-custom.checked {
+      background-color: #c4a35a;
+      border-color: #c4a35a;
+      color: #1e3a5f;
     }
   </style>
   <style>body { box-sizing: border-box; }</style>
@@ -29,9 +45,17 @@
  <body class="h-full">
   <div id="app" class="h-full overflow-auto" style="background: linear-gradient(135deg, #f8f6f3 0%, #e8e4dd 100%); font-family: 'DM Sans', sans-serif;"><!-- Countdown Navbar -->
    <nav class="no-print fixed top-0 left-0 right-0 z-40 shadow-md" style="background: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 100%);">
-    <div class="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center gap-4">
      <div class="text-lg font-bold" style="color: #c4a35a; font-family: 'Crimson Pro', serif;">
       CIAE Exam Countdown
+     </div><!-- Streak Display -->
+     <div id="streak-display" style="text-align: center; color: #f8f6f3; font-family: 'Crimson Pro', serif; min-width: 80px;">
+      <div style="font-size: 28px; font-weight: bold; color: #c4a35a;">
+       🔥 0
+      </div>
+      <div style="font-size: 11px; opacity: 0.8;">
+       Day Streak
+      </div>
      </div>
      <div class="flex items-center gap-4">
       <div id="countdown" class="flex gap-4 text-sm font-semibold" style="color: #f8f6f3;">
@@ -300,7 +324,7 @@
      </div>
     </div><!-- Footer -->
     <footer class="text-center pt-6 pb-4" style="border-top: 2px dashed #1e3a5f;">
-     <p class="font-semibold" style="color: #1e3a5f;">Print this sheet and tick each session daily ✓</p>
+     <p class="font-semibold" style="color: #1e3a5f;">Click checkboxes to track daily progress • Build your streak! 🔥</p>
      <p class="text-sm mt-2 opacity-50">Days to Success — You've Got This! 🌟</p>
     </footer>
    </div>
@@ -334,11 +358,181 @@
       }
     }
 
-    // Start countdown immediately when script loads
+    // Start countdown immediately
     updateCountdown();
-    
-    // Update every minute
     setInterval(updateCountdown, 60000);
+
+    // Streak Manager
+    class StreakManager {
+      constructor() {
+        this.loadData();
+      }
+
+      getTodayKey() {
+        const date = new Date();
+        return date.toISOString().split('T')[0];
+      }
+
+      loadData() {
+        const saved = localStorage.getItem('streakData');
+        if (saved) {
+          const data = JSON.parse(saved);
+          this.streak = data.streak || 0;
+          this.lastDate = data.lastDate || null;
+          this.completedToday = data.completedToday || false;
+          this.resetIfNewDay();
+        } else {
+          this.streak = 0;
+          this.lastDate = null;
+          this.completedToday = false;
+        }
+      }
+
+      resetIfNewDay() {
+        if (this.lastDate !== this.getTodayKey()) {
+          this.completedToday = false;
+        }
+      }
+
+      saveData() {
+        localStorage.setItem('streakData', JSON.stringify({
+          streak: this.streak,
+          lastDate: this.lastDate,
+          completedToday: this.completedToday
+        }));
+      }
+
+      completeDay() {
+        const today = this.getTodayKey();
+        
+        if (this.completedToday) return;
+
+        if (this.lastDate === null) {
+          this.streak = 1;
+        } else {
+          const last = new Date(this.lastDate);
+          const now = new Date(today);
+          const diffTime = Math.abs(now - last);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            this.streak += 1;
+          } else {
+            this.streak = 1;
+          }
+        }
+
+        this.lastDate = today;
+        this.completedToday = true;
+        this.saveData();
+      }
+
+      getStreak() {
+        return this.streak;
+      }
+
+      hasCompletedToday() {
+        return this.completedToday && this.lastDate === this.getTodayKey();
+      }
+    }
+
+    const streakManager = new StreakManager();
+
+    // Checkbox System
+    class CheckboxSystem {
+      constructor() {
+        this.checkboxes = [];
+        this.today = this.getTodayKey();
+        this.initializeCheckboxes();
+        this.loadCheckboxStates();
+        this.renderStreak();
+      }
+
+      getTodayKey() {
+        const date = new Date();
+        return date.toISOString().split('T')[0];
+      }
+
+      initializeCheckboxes() {
+        document.querySelectorAll('.checkbox-custom').forEach((checkbox, index) => {
+          checkbox.dataset.index = index;
+          
+          checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleCheckbox(index);
+          });
+
+          this.checkboxes.push({
+            element: checkbox,
+            checked: false
+          });
+        });
+      }
+
+      loadCheckboxStates() {
+        const saved = localStorage.getItem(`checkboxes_${this.today}`);
+        
+        if (saved) {
+          const states = JSON.parse(saved);
+          states.forEach((checked, index) => {
+            if (this.checkboxes[index]) {
+              this.checkboxes[index].checked = checked;
+              this.updateCheckboxAppearance(index);
+            }
+          });
+        }
+      }
+
+      toggleCheckbox(index) {
+        if (this.checkboxes[index]) {
+          this.checkboxes[index].checked = !this.checkboxes[index].checked;
+          this.updateCheckboxAppearance(index);
+          this.saveCheckboxStates();
+          this.checkDailyCompletion();
+          this.renderStreak();
+        }
+      }
+
+      updateCheckboxAppearance(index) {
+        const checkbox = this.checkboxes[index].element;
+        if (this.checkboxes[index].checked) {
+          checkbox.classList.add('checked');
+          checkbox.textContent = '✓';
+        } else {
+          checkbox.classList.remove('checked');
+          checkbox.textContent = '';
+        }
+      }
+
+      saveCheckboxStates() {
+        const states = this.checkboxes.map(cb => cb.checked);
+        localStorage.setItem(`checkboxes_${this.today}`, JSON.stringify(states));
+      }
+
+      checkDailyCompletion() {
+        const allChecked = this.checkboxes.length > 0 && this.checkboxes.every(cb => cb.checked);
+        if (allChecked && !streakManager.hasCompletedToday()) {
+          streakManager.completeDay();
+        }
+      }
+
+      renderStreak() {
+        const streakDisplay = document.getElementById('streak-display');
+        const streak = streakManager.getStreak();
+        const hasCompleted = streakManager.hasCompletedToday();
+        
+        if (streakDisplay) {
+          streakDisplay.innerHTML = `
+            <div style="text-align: center; color: #f8f6f3; font-family: 'Crimson Pro', serif;">
+              <div style="font-size: 28px; font-weight: bold; color: #c4a35a; animation: pulse 0.6s infinite;">🔥 ${streak}</div>
+              <div style="font-size: 11px; opacity: 0.8;">${hasCompleted ? '✓ Complete' : 'In Progress'}</div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    const checkboxSystem = new CheckboxSystem();
 
     const defaultConfig = {
       main_title: "Daily Study Timetable",
@@ -446,6 +640,16 @@
         mapToEditPanelValues
       });
     }
+
+    // Add pulse animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+    `;
+    document.head.appendChild(style);
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cdda353836321f0',t:'MTc3MTA4MzM1NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cdda6d7274221f0',t:'MTc3MTA4MzQ5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
